@@ -4,11 +4,13 @@
 // ============================================
 
 import { useCallback, useEffect, useState } from 'react'
-import { KtSetupPanel } from './features/kt/KtSetupPanel'
 import { KtChatView } from './features/kt/KtChatView'
 import { useKtAgent } from './hooks/useKtAgent'
 import { ktListAgents, ktResumeSession } from './api/ktClient'
 import type { KtAgentStatus } from './api/ktClient'
+
+const KT_LAST_WORKSPACE_KEY = 'kt:last-workspace'
+const KT_LAST_LAUNCHER_ITEM_KEY = 'kt:last-launcher-item'
 
 function KtAppInner({
   initialAgentId,
@@ -16,8 +18,9 @@ function KtAppInner({
   initialAgentId: string | null
 }) {
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(initialAgentId)
-  const [currentWorkspace, setCurrentWorkspace] = useState<string | null>(null)
+  const [currentWorkspace, setCurrentWorkspace] = useState<string | null>(() => localStorage.getItem(KT_LAST_WORKSPACE_KEY) || null)
   const [currentSessionName, setCurrentSessionName] = useState<string | null>(null)
+  const [lastLauncherItemId, setLastLauncherItemId] = useState<string | null>(() => localStorage.getItem(KT_LAST_LAUNCHER_ITEM_KEY) || null)
 
   const {
     connectionState,
@@ -53,15 +56,29 @@ function KtAppInner({
   }, [])
 
   useEffect(() => {
-    if (!selectedAgentId) {
-      void loadRunningAgents()
+    void loadRunningAgents()
+    void refreshConfigs()
+  }, [loadRunningAgents, refreshConfigs])
+
+  useEffect(() => {
+    if (currentWorkspace) {
+      localStorage.setItem(KT_LAST_WORKSPACE_KEY, currentWorkspace)
+    } else {
+      localStorage.removeItem(KT_LAST_WORKSPACE_KEY)
     }
-  }, [selectedAgentId, loadRunningAgents])
+  }, [currentWorkspace])
+
+  useEffect(() => {
+    if (lastLauncherItemId) {
+      localStorage.setItem(KT_LAST_LAUNCHER_ITEM_KEY, lastLauncherItemId)
+    } else {
+      localStorage.removeItem(KT_LAST_LAUNCHER_ITEM_KEY)
+    }
+  }, [lastLauncherItemId])
 
   const handleSelectAgent = useCallback(
     async (agentId: string) => {
       setCurrentSessionName(null)
-      setCurrentWorkspace(null)
       setSelectedAgentId(agentId)
     },
     [],
@@ -72,9 +89,11 @@ function KtAppInner({
       const agentId = await startAgent(configPath, pwd)
       setCurrentWorkspace(pwd ?? null)
       setCurrentSessionName(null)
+      setSelectedAgentId(agentId)
+      void loadRunningAgents()
       return agentId
     },
-    [startAgent],
+    [loadRunningAgents, startAgent],
   )
 
   const handleResumeSession = useCallback(async (sessionName: string, workspace?: string) => {
@@ -94,24 +113,15 @@ function KtAppInner({
     void loadRunningAgents()
   }, [stopAgent, loadRunningAgents])
 
-  // If no agent selected, show setup
-  if (!selectedAgentId) {
-    return (
-      <KtSetupPanel
-        onSelectAgent={handleSelectAgent}
-        onStartAgent={handleStartAgent}
-        onInstallDefaults={installKtDefaults}
-        onRefreshAgents={loadRunningAgents}
-        onRefreshConfigs={refreshConfigs}
-        runningAgents={runningAgents}
-        configs={configs}
-        isLoadingConfigs={isLoadingConfig}
-        error={error}
-      />
-    )
-  }
+  const handleLauncherStateChange = useCallback((state: { workspace: string; selectedItemId: string | null }) => {
+    setCurrentWorkspace(state.workspace.trim() || null)
+    setLastLauncherItemId(state.selectedItemId)
+  }, [])
 
-  // Show chat view
+  const handleWorkspaceInputChange = useCallback((workspace: string) => {
+    setCurrentWorkspace(workspace.trim() || null)
+  }, [])
+
   return (
     <KtChatView
       messages={messages}
@@ -124,11 +134,22 @@ function KtAppInner({
       error={error}
       currentWorkspace={currentWorkspace ?? agentInfo?.pwd ?? null}
       currentSessionName={currentSessionName}
+      runningAgents={runningAgents}
+      configs={configs}
+      isLoadingConfigs={isLoadingConfig}
+      lastLauncherItemId={lastLauncherItemId}
       onSend={sendMessage}
       onCommand={executeCommand}
       onStop={abort}
       onClearError={clearError}
       onResumeSession={handleResumeSession}
+      onSelectAgent={handleSelectAgent}
+      onStartAgent={handleStartAgent}
+      onInstallDefaults={installKtDefaults}
+      onRefreshAgents={loadRunningAgents}
+      onRefreshConfigs={refreshConfigs}
+      onLauncherStateChange={handleLauncherStateChange}
+      onWorkspaceInputChange={handleWorkspaceInputChange}
       onDisconnect={handleDisconnect}
     />
   )

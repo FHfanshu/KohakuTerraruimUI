@@ -142,6 +142,13 @@ function buildKtPrompt(text: string, attachments: Attachment[], options?: { agen
   return sections.join('\n\n').trim()
 }
 
+function prettifyKtError(errorType: string | undefined, message: string): string {
+  if (errorType === 'RateLimitError' || message.includes('usage_limit_reached')) {
+    return 'Current model quota is exhausted. Wait for reset or switch to another KT model profile.'
+  }
+  return errorType ? `${errorType}: ${message}` : message
+}
+
 // ============================================
 // Message conversion: KtUiMessage → OpenCodeUI Message
 // ============================================
@@ -475,6 +482,23 @@ export function useKtAgent({ agentId }: UseKtAgentOptions): UseKtAgentResult {
     setKtMessages([])
   }, [])
 
+  const handleProcessingError = useCallback((errorType: string | undefined, error: string | undefined, detail: string | undefined) => {
+    const message = error || detail || 'Agent processing failed'
+    setError(prettifyKtError(errorType, message))
+    setKtMessages(prev => {
+      if (prev.length === 0) return prev
+      const last = prev[prev.length - 1]
+      if (last && last.isStreaming) {
+        const updated = [...prev]
+        updated[prev.length - 1] = { ...updated[prev.length - 1], isStreaming: false }
+        return updated
+      }
+      return prev
+    })
+    streamingMsgIdRef.current = null
+    activeToolCallIdRef.current = null
+  }, [])
+
   // ============================================
   // WebSocket Setup / Teardown
   // ============================================
@@ -502,6 +526,7 @@ export function useKtAgent({ agentId }: UseKtAgentOptions): UseKtAgentResult {
         onCompactStart: handleCompactStart,
         onCompactComplete: handleCompactComplete,
         onContextCleared: handleContextCleared,
+        onProcessingError: handleProcessingError,
       }
 
       const handler = new KtWsHandler(agId, callbacks)
@@ -526,6 +551,7 @@ export function useKtAgent({ agentId }: UseKtAgentOptions): UseKtAgentResult {
       handleCompactStart,
       handleCompactComplete,
       handleContextCleared,
+      handleProcessingError,
     ],
   )
 

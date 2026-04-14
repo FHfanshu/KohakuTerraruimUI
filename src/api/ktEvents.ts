@@ -101,6 +101,7 @@ interface KtWsActivityEvent {
   cached_tokens?: number
   messages_compacted?: number
   messages_cleared?: number
+  error_type?: string
 }
 
 interface KtWsSessionInfoEvent {
@@ -152,6 +153,7 @@ export interface KtEventCallbacks {
   onCompactStart: () => void
   onCompactComplete: (summary: string | undefined, messagesCompacted: number | undefined) => void
   onContextCleared: (messagesCleared: number | undefined) => void
+  onProcessingError: (errorType: string | undefined, error: string | undefined, detail: string | undefined) => void
 }
 
 let _idCounter = 0
@@ -312,6 +314,10 @@ export class KtWsHandler {
         }
         if (act.activity_type === 'context_cleared') {
           this.callbacks.onContextCleared(act.messages_cleared)
+          return
+        }
+        if (act.activity_type === 'processing_error') {
+          this.callbacks.onProcessingError(act.error_type, act.error, act.detail)
           return
         }
         break
