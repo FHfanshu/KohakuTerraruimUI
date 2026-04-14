@@ -1,8 +1,10 @@
-# OpenCodeUI
+# KohakuTerrarium UI
 
 中文 | [English](./README_EN.md)
 
-一个为 [OpenCode](https://github.com/anomalyco/opencode) 打造的第三方 Web 前端界面。
+一个面向 [KohakuTerrarium](https://github.com/Kohaku-Lab/KohakuTerrarium) 的 Web 前端界面，当前聚焦于通过 `kt web` 提供单 agent 聊天、配置选择、会话恢复与模型切换体验。
+
+本项目基于原有 OpenCodeUI 代码库演进而来，目前正在逐步切换为 KT 专用前端。
 
 **本项目完全由 AI 辅助编程（Vibe Coding）完成**——从第一行代码到最终发布，所有功能均通过与 AI 对话驱动开发。
 
@@ -13,20 +15,16 @@
 <img width="2298" height="1495" alt="image" src="https://github.com/user-attachments/assets/dc68837b-0560-4701-b6ab-ecb13fdc1f4f" />
 <img width="2296" height="1500" alt="image" src="https://github.com/user-attachments/assets/7a8d9754-69c4-49c5-99ee-6452d94f5420" />
 <img width="411" height="906" alt="image" src="https://github.com/user-attachments/assets/0cfbf8b2-3fed-4e3c-8b49-1175c6e12f54" />
-## 特性
+## 当前特性
 
-- **完整的 Chat 界面** — 消息流、Markdown 渲染、代码高亮（Shiki）
-- **内置终端** — 基于 xterm.js 的 Web 终端，支持 WebGL 渲染
-- **文件浏览与 Diff** — 查看工作区文件、多文件 diff 对比
-- **主题系统** — 3 套内置主题（Eucalyptus / Claude / Breeze），支持明暗模式切换和自定义 CSS
-- **PWA 支持** — 可安装为桌面/移动端应用
-- **移动端适配** — 安全区域、触摸优化、响应式布局
-- **浏览器通知** — AI 回复完成时推送通知
-- **@ 提及与 / 斜杠命令** — 对话中快速引用文件和执行命令
-- **自定义快捷键** — 可配置的键位绑定
-- **Docker 部署** — 前后端分离容器化，开箱即用
-- **桌面应用** — 基于 Tauri 的原生客户端（macOS / Linux / Windows）
-- **动态端口路由** — 容器内开发服务自动发现，生成预览链接
+- **KT 单 agent 聊天界面** — 对接 `kt web` 的 REST API 与 WebSocket 流
+- **Agent 启动与选择** — 可选择已运行 agent，或从 registry 里的 creature 配置直接启动
+- **会话恢复** — 按工作区筛选历史 session 并恢复到新的运行实例
+- **模型切换** — 读取 KT 模型配置并切换当前 agent 的模型/推理强度
+- **OpenCodeUI 风格消息渲染** — 复用现有消息 UI、Markdown 渲染与代码高亮能力
+- **主题系统** — 保留现有主题、明暗模式和宽屏模式体验
+- **浏览器开发模式** — 通过 Vite 代理 `/api` 与 `/ws` 到 `kt web --dev`
+- **桌面外壳仍保留** — 代码库中仍包含 Tauri / Docker / OpenCodeUI 遗留能力，但 README 以下部分未完全迁移前，请视为历史内容
 
 ## 技术栈
 
@@ -41,15 +39,26 @@
 | 桌面     | Tauri 2                        |
 | 部署     | Docker (Caddy + Python Router) |
 
-## 快速体验
+## 快速开始
 
-无需部署，在本地启动 OpenCode 后端后直接访问托管版前端：
+先启动 KohakuTerrarium 后端：
 
 ```bash
-opencode serve --cors "https://lehhair.github.io"
+cd F:\AI\KohakuTerrarium
+kt web --dev --host 127.0.0.1 --port 8001
 ```
 
-然后打开 https://lehhair.github.io/OpenCodeUI/
+再启动前端：
+
+```bash
+cd F:\AI\KohakuTerrarium\KohakuTerraruimUI
+npm install
+npm run dev
+```
+
+然后打开 `http://localhost:5173`。
+
+开发环境下，Vite 会把 `/api` 和 `/ws` 代理到 `http://127.0.0.1:8001`。如需修改后端地址，可设置 `VITE_KT_BACKEND_URL`。
 
 ## Docker 部署（纯前端）
 
@@ -240,19 +249,21 @@ preview.example.com {
 
 ## 本地开发
 
-需要一个运行中的 [OpenCode](https://github.com/anomalyco/opencode) 后端。
+需要一个运行中的 KohakuTerrarium Web 后端。
 
 ```bash
-opencode serve
+cd F:\AI\KohakuTerrarium
+kt web --dev --host 127.0.0.1 --port 8001
 
 # 另一个终端
-git clone https://github.com/lehhair/OpenCodeUI.git
-cd OpenCodeUI
+cd F:\AI\KohakuTerrarium\KohakuTerraruimUI
 npm install
 npm run dev
 ```
 
-Vite 启动在 `http://localhost:5173`，`/api` 自动代理到 `http://127.0.0.1:4096`。
+Vite 启动在 `http://localhost:5173`，默认会把 `/api` 和 `/ws` 自动代理到 `http://127.0.0.1:8001`。
+
+更详细的调试说明见 `DEBUG_GUIDE.md`。
 
 ### 提交前校验
 
@@ -295,25 +306,29 @@ npm run tauri build
 
 ```
 src/
-├── api/                 # API 请求封装
-├── components/          # 通用组件（Terminal、DiffView 等）
+├── api/                 # API 请求封装（含 KT REST / WS 客户端）
+├── components/          # 通用组件（消息、菜单、对话框等）
 ├── features/            # 业务模块
-│   ├── chat/            #   聊天界面
+│   ├── chat/            #   复用的聊天输入/模型选择/侧边栏组件
+│   ├── kt/              #   KT 专用 setup/chat 视图
 │   ├── message/         #   消息渲染
-│   ├── sessions/        #   会话管理
 │   ├── settings/        #   设置面板
 │   ├── mention/         #   @ 提及
 │   └── slash-command/   #   斜杠命令
-├── hooks/               # 自定义 Hooks
+├── hooks/               # 自定义 Hooks（含 useKtAgent / useKtModels / useKtSessions）
 ├── store/               # 状态管理
 ├── themes/              # 主题预设
 └── utils/               # 工具函数
 
-src-tauri/               # Tauri 桌面应用（Rust）
-docker/                  # Docker 配置（Gateway / Frontend / Backend）
+src-tauri/               # Tauri 桌面应用（遗留，未完全切换到 KT）
+docker/                  # Docker 配置（大部分仍是上游 OpenCodeUI 方案）
 ```
 
 ## 设计说明
+
+当前 UI 视觉风格仍明显继承自 OpenCodeUI，交互与数据流则开始转向 KohakuTerrarium 的 `kt web` API。
+
+README 中与 Docker、Tauri、OpenCode 后端强相关的部分仍有历史遗留，若与当前 KT 浏览器开发流不一致，请以 `DEBUG_GUIDE.md`、`vite.config.ts` 与 `src/KtApp.tsx` 为准。
 
 部分 UI 风格参考了 [Claude](https://claude.ai) 的界面设计。
 

@@ -1,8 +1,10 @@
-# OpenCodeUI
+# KohakuTerrarium UI
 
 [中文](./README.md) | English
 
-A third-party Web frontend for [OpenCode](https://github.com/anomalyco/opencode).
+A Web frontend for [KohakuTerrarium](https://github.com/Kohaku-Lab/KohakuTerrarium), currently focused on single-agent chat, config selection, session resume, and model switching on top of `kt web`.
+
+This project evolves from the original OpenCodeUI codebase and is being migrated toward a KT-specific frontend.
 
 **This project is entirely built with AI-assisted programming (Vibe Coding)** — from the first line of code to the final release, all features were developed through conversations with AI.
 
@@ -13,20 +15,16 @@ A third-party Web frontend for [OpenCode](https://github.com/anomalyco/opencode)
 <img width="2298" height="1495" alt="image" src="https://github.com/user-attachments/assets/dc68837b-0560-4701-b6ab-ecb13fdc1f4f" />
 <img width="2296" height="1500" alt="image" src="https://github.com/user-attachments/assets/7a8d9754-69c4-49c5-99ee-6452d94f5420" />
 
-## Features
+## Current Features
 
-- **Full Chat Interface** — Message streaming, Markdown rendering, code highlighting (Shiki)
-- **Built-in Terminal** — Web terminal based on xterm.js with WebGL rendering
-- **File Browsing & Diff** — Browse workspace files, multi-file diff comparison
-- **Theme System** — 3 built-in themes (Eucalyptus / Claude / Breeze), light/dark mode toggle and custom CSS
-- **PWA Support** — Installable as a desktop/mobile app
-- **Mobile Friendly** — Safe area handling, touch optimization, responsive layout
-- **Browser Notifications** — Push notifications when AI replies are complete
-- **@ Mentions & / Slash Commands** — Quickly reference files and execute commands in conversations
-- **Custom Shortcuts** — Configurable key bindings
-- **Docker Deployment** — Containerized frontend and backend separation, ready to use out of the box
-- **Desktop App** — Native client based on Tauri (macOS / Linux / Windows)
-- **Dynamic Port Routing** — Auto-discovery of dev services inside containers, generates preview links
+- **KT single-agent chat UI** — Talks to `kt web` through REST and WebSocket APIs
+- **Agent launch and selection** — Pick an already running agent or start one directly from a registry creature config
+- **Session resume** — Filter saved sessions by workspace and resume them into a new running instance
+- **Model switching** — Read KT model profiles and switch the current agent's model / reasoning level
+- **OpenCodeUI-style message rendering** — Reuses the existing chat, Markdown, and code highlighting UI stack
+- **Theme system** — Keeps the current themes, dark/light mode, and wide layout experience
+- **Browser dev workflow** — Vite proxies `/api` and `/ws` to `kt web --dev`
+- **Desktop shell still exists** — The repo still contains Tauri / Docker / OpenCodeUI legacy pieces; until the rest of this README is fully migrated, treat those sections as historical context
 
 ## Tech Stack
 
@@ -43,13 +41,24 @@ A third-party Web frontend for [OpenCode](https://github.com/anomalyco/opencode)
 
 ## Quick Start
 
-No deployment needed — after starting the OpenCode backend locally, access the hosted frontend directly:
+Start the KohakuTerrarium backend first:
 
 ```bash
-opencode serve --cors "https://lehhair.github.io"
+cd F:\AI\KohakuTerrarium
+kt web --dev --host 127.0.0.1 --port 8001
 ```
 
-Then open https://lehhair.github.io/OpenCodeUI/
+Then start the frontend:
+
+```bash
+cd F:\AI\KohakuTerrarium\KohakuTerraruimUI
+npm install
+npm run dev
+```
+
+Then open `http://localhost:5173`.
+
+In development, Vite proxies `/api` and `/ws` to `http://127.0.0.1:8001`. If needed, override the backend with `VITE_KT_BACKEND_URL`.
 
 ## Docker Deployment (Frontend Only)
 
@@ -240,19 +249,21 @@ preview.example.com {
 
 ## Local Development
 
-Requires a running [OpenCode](https://github.com/anomalyco/opencode) backend.
+Requires a running KohakuTerrarium web backend.
 
 ```bash
-opencode serve
+cd F:\AI\KohakuTerrarium
+kt web --dev --host 127.0.0.1 --port 8001
 
 # In another terminal
-git clone https://github.com/lehhair/OpenCodeUI.git
-cd OpenCodeUI
+cd F:\AI\KohakuTerrarium\KohakuTerraruimUI
 npm install
 npm run dev
 ```
 
-Vite starts at `http://localhost:5173`, `/api` is automatically proxied to `http://127.0.0.1:4096`.
+Vite starts at `http://localhost:5173` and proxies `/api` and `/ws` to `http://127.0.0.1:8001` by default.
+
+For more detailed troubleshooting notes, see `DEBUG_GUIDE.md`.
 
 ### Pre-PR Validation
 
@@ -295,25 +306,29 @@ npm run tauri build
 
 ```
 src/
-├── api/                 # API request wrappers
-├── components/          # Common components (Terminal, DiffView, etc.)
-├── features/            # Business modules
-│   ├── chat/            #   Chat interface
+├── api/                 # API wrappers, including KT REST / WS clients
+├── components/          # Shared UI components (messages, menus, dialogs, etc.)
+├── features/            # Feature modules
+│   ├── chat/            #   Reused chat input / selector / sidebar pieces
+│   ├── kt/              #   KT-specific setup and chat views
 │   ├── message/         #   Message rendering
-│   ├── sessions/        #   Session management
-│   ├── settings/        #   Settings panel
+│   ├── settings/        #   Settings panels
 │   ├── mention/         #   @ mentions
 │   └── slash-command/   #   Slash commands
-├── hooks/               # Custom Hooks
+├── hooks/               # Custom hooks, including useKtAgent / useKtModels / useKtSessions
 ├── store/               # State management
 ├── themes/              # Theme presets
 └── utils/               # Utility functions
 
-src-tauri/               # Tauri desktop app (Rust)
-docker/                  # Docker config (Gateway / Frontend / Backend)
+src-tauri/               # Tauri desktop app (legacy, not fully migrated to KT)
+docker/                  # Docker config (mostly inherited from upstream OpenCodeUI)
 ```
 
 ## Design Notes
+
+The current visual style still clearly inherits from OpenCodeUI, while the interaction model and data flow are starting to move toward KohakuTerrarium's `kt web` API.
+
+Parts of this README that still describe Docker, Tauri, or OpenCode-specific deployment are historical leftovers. If they disagree with the current KT browser workflow, trust `DEBUG_GUIDE.md`, `vite.config.ts`, and `src/KtApp.tsx`.
 
 Some UI styles are inspired by the [Claude](https://claude.ai) interface design.
 
