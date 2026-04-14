@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 import { readFileSync } from 'node:fs'
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8')) as { version: string }
+const ktBackendUrl = process.env.VITE_KT_BACKEND_URL || 'http://127.0.0.1:8001'
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -43,13 +44,16 @@ export default defineConfig({
     allowedHosts: true,
 
     proxy: {
-      // 开发环境代理 - 将 /api 前缀的请求转发到 OpenCode 后端
-      // 注意：Tauri 模式下前端直接请求后端（通过 plugin-http），不走此代理
+      // 开发环境代理 - 将 KT API/WS 转发到 `kt web --dev` 启动的后端
       '/api': {
-        target: 'http://127.0.0.1:4096',
+        target: ktBackendUrl,
         changeOrigin: true,
         ws: true,
-        rewrite: path => path.replace(/^\/api/, ''),
+      },
+      '/ws': {
+        target: ktBackendUrl,
+        changeOrigin: true,
+        ws: true,
       },
     },
   },
